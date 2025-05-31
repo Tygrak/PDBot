@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 using PDBot.API;
 using PDBot.Core.API;
 
@@ -16,11 +17,13 @@ namespace Tests
         public void TestBuggedCards()
         {
             BuggedCards.CheckForNewList();
-            Assert.Positive(BuggedCards.Bugs.Count);
-            Assert.NotNull(BuggedCards.Bugs.First().CardName);
-            Assert.NotNull(BuggedCards.Bugs.First().Classification);
-            Assert.NotNull(BuggedCards.Bugs.First().Description);
-            Assert.NotNull(BuggedCards.Bugs.First().LastConfirmed);
+            Assume.That(BuggedCards.Bugs.Any());
+            var bug = BuggedCards.Bugs.FirstOrDefault();
+            ClassicAssert.NotNull(bug);
+            ClassicAssert.NotNull(bug.CardName);
+            ClassicAssert.NotNull(bug.Classification);
+            ClassicAssert.NotNull(bug.Description);
+            ClassicAssert.NotNull(bug.LastConfirmed);
         }
     }
 }

@@ -17,11 +17,11 @@ namespace PDBot.Core
 {
     public class DiscordFunctions : ICronObject
     {
-        static Dictionary<string, ulong?> MtgoToDiscordMapping { get; } = new Dictionary<string, ulong?>();
+        static Dictionary<string, ulong?> MtgoToDiscordMapping { get; } = [];
 
         private const long PENNY_DREADFUL_GUILD_ID = 207281932214599682;
         private ITournamentManager m_tournamentManager;
-        private static List<ulong> checkedGuilds = new List<ulong>();
+        private static readonly List<ulong> checkedGuilds = [];
 
         ITournamentManager TournamentManager => m_tournamentManager ??= Resolver.Helpers.GetTournamentManager();
 
@@ -50,13 +50,13 @@ namespace PDBot.Core
                 return;
             var stats = await LogsiteApi.GetStatsAsync();
 
-            var PdGames = stats.Formats[MagicFormat.PennyDreadful.ToString()].LastWeek.NumMatches;
+            var PdGames = stats.Formats[MagicFormat.PennyDreadful.ToString()]?.LastWeek?.NumMatches ?? 0;
             var PdhGames = stats.Formats[MagicFormat.PennyDreadfulCommander.ToString()]?.LastWeek?.NumMatches ?? 0;
 
             var prevPdGames = stats.Formats[MagicFormat.PennyDreadful.ToString()].LastLastWeek?.NumMatches ?? 0;
             var prevPdhGames = stats.Formats[MagicFormat.PennyDreadfulCommander.ToString()].LastLastWeek?.NumMatches ?? 0;
 
-            var players = stats.Formats[MagicFormat.PennyDreadful.ToString()].LastWeek.Players.Union(stats.Formats[MagicFormat.PennyDreadfulCommander.ToString()]?.LastWeek?.Players ?? new string[0]);
+            var players = (stats.Formats[MagicFormat.PennyDreadful.ToString()]?.LastWeek?.Players ?? []).Union(stats.Formats[MagicFormat.PennyDreadfulCommander.ToString()]?.LastWeek?.Players ?? new string[0]);
 
             var sb = new StringBuilder();
             sb.Append($"In the last week, I saw {players.Count()} people from the Penny Dreadful community play {PdGames} Penny Dreadful matches");
@@ -74,9 +74,9 @@ namespace PDBot.Core
                 var percent = ((PdhGames - prevPdhGames) / (double)prevPdhGames);
                 string pstr;
                 if (percent >= 0)
-                    pstr = $"up {percent.ToString("p0")}";
+                    pstr = $"up {percent:p0}";
                 else
-                    pstr = $"down {Math.Abs(percent).ToString("p0")}";
+                    pstr = $"down {Math.Abs(percent):p0}";
                 sb.Append($" ({pstr} from last week)");
 
             }
@@ -148,7 +148,7 @@ namespace PDBot.Core
             var stats = await LogsiteApi.GetStatsAsync();
             var pdh = stats.Formats[MagicFormat.PennyDreadfulCommander.ToString()];
 
-            ulong?[] players = new ulong?[0];
+            ulong?[] players = [];
             if (pdh.LastMonth != null)
                 players = await GetDiscordIDsAsync(pdh.LastMonth.Players);
             await DiscordService.SyncRoleAsync(PENNY_DREADFUL_GUILD_ID, "Recent PDH", players);
@@ -158,9 +158,7 @@ namespace PDBot.Core
         {
             var tasks = playerNames.Select(DiscordIDAsync).ToArray();
             await Task.WhenAll(tasks);
-#pragma warning disable AsyncFixer02 // Long running or blocking operations under an async method
             var players = tasks.Select(t => t.Result).Where(id => id != null).ToArray();
-#pragma warning restore AsyncFixer02 // Long running or blocking operations under an async method
             return players;
         }
 
@@ -183,11 +181,11 @@ namespace PDBot.Core
             return ChanId;
         }
 
-        List<ulong> RememberedTournamentChannels { get; } = new List<ulong>()
-        {
+        List<ulong> RememberedTournamentChannels { get; } =
+        [
             334220558159970304,
             750017068392513612,
-        };
+        ];
 
         public async Task DoTournamentRoleAsync()
         {
@@ -196,8 +194,8 @@ namespace PDBot.Core
 
             void setup(ulong channel)
             {
-                tournament_players[channel] = new List<string>();
-                waiting_on[channel] = new List<string>();
+                tournament_players[channel] = [];
+                waiting_on[channel] = [];
             }
 
             foreach (var channel in RememberedTournamentChannels)
@@ -246,7 +244,7 @@ namespace PDBot.Core
         {
             string MatchEmoji(IMatch match)
             {
-                if (match.Observers.OfType<GameObservers.Tourney>().SingleOrDefault() is GameObservers.Tourney)
+                if (match.Observers.OfType<GameObservers.Tourney>().SingleOrDefault() is not null)
                 {
                     return "📅 ";
                 }
@@ -275,8 +273,7 @@ namespace PDBot.Core
             var Games = Resolver.Helpers.GetGameList().ActiveMatches
                 .Where(m => !m.Completed)
                 .Where(m => m.Format == MagicFormat.PennyDreadful || m.Format == MagicFormat.PennyDreadfulCommander).ToArray();
-            var ActiveCategory = DiscordService.client.GetChannel(492518614272835594) as SocketCategoryChannel;
-            if (ActiveCategory == null)
+            if (DiscordService.client.GetChannel(492518614272835594) is not SocketCategoryChannel ActiveCategory)
                 return;
 
             var expected = Games.Select(m => MatchEmoji(m) + string.Join(" vs ", m.Players)).ToArray();
@@ -369,6 +366,7 @@ namespace PDBot.Core
             }
 
             string[] lines = pairingsText.Split('\n');
+            lines = lines.SkipWhile(l => l.StartsWith("[sF]") || l.StartsWith("😦")).ToArray();
             var expected_round = lines[0];
             if (expected_round.StartsWith("Welcome to"))
                 expected_round = lines[1];
@@ -381,6 +379,7 @@ namespace PDBot.Core
                 if (post.Author.Id != DiscordService.client.CurrentUser.Id)
                     continue;
                 lines = post.Content.Split('\n');
+                lines = lines.SkipWhile(l => l.StartsWith("[sF]") || l.StartsWith("😦")).ToArray();
                 var round = lines[0];
                 if (round.StartsWith("Welcome to"))
                     round = lines[1];

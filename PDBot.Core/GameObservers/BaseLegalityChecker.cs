@@ -105,6 +105,7 @@ namespace PDBot.Core.GameObservers
 
             var url = $"https://api.scryfall.com/cards/named?exact={name}";
             using var wc = new WebClient();
+            wc.Headers[HttpRequestHeader.UserAgent] = "PDBot";
             try
             {
                 var blob = wc.DownloadString(url);
@@ -131,7 +132,8 @@ namespace PDBot.Core.GameObservers
                         break;
                     case "adventure":
                         face = json["card_faces"].First(f => f.Value<string>(nameof(name)) == name) as JObject;
-                        IsTransform = face.Value<string>("type_line").Contains("Adventure");
+                        string typeline = face.Value<string>("type_line");
+                        IsTransform = typeline.Contains("Adventure") || typeline.Contains("Omen");
                         break;
                     default:
                         if (!IsTransform)

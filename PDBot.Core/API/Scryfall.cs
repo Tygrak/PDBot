@@ -12,6 +12,8 @@ namespace PDBot.Core.API
     public static class Scryfall
     {
 
+        static string[] CardNames = null;
+
         static Dictionary<string, Card> Cache { get; } = new Dictionary<string, Card>();
         static Dictionary<int, Card> IDCache { get; } = new Dictionary<int, Card>();
 
@@ -27,6 +29,19 @@ namespace PDBot.Core.API
             return card;
         }
 
+        public static Card GetFuzzyCard(string name)
+        {
+            if (Cache.ContainsKey(name))
+            {
+                return Cache[name];
+            }
+
+            var address = $"cards/named?fuzzy={name}";
+            var card = HitAPI(address);
+            return card;
+
+        }
+
         public static Card GetCardFromCatID(int id)
         {
             if (IDCache.ContainsKey(id))
@@ -40,6 +55,31 @@ namespace PDBot.Core.API
             return card;
         }
 
+        public static string[] CardCatalog()
+        {
+            if (CardNames == null)
+            {
+                // https://api.scryfall.com/catalog/card-names
+                try
+                {
+                    using var wc = new WebClient
+                    {
+                        BaseAddress = "https://api.scryfall.com/",
+                        Encoding = Encoding.UTF8,
+                    };
+                    wc.Headers[HttpRequestHeader.UserAgent] = "PDBot";
+                    var blob = wc.DownloadString("catalog/card-names");
+                    var json = Newtonsoft.Json.JsonConvert.DeserializeObject(blob) as JObject;
+                    CardNames = json["data"].Values<string>().ToArray<string>();
+                }
+                catch (WebException)
+                {
+                    return null;
+                }
+            }
+            return CardNames;
+        }
+
         private static Card HitAPI(string address)
         {
             if (address == null)
@@ -49,15 +89,15 @@ namespace PDBot.Core.API
 
             try
             {
-                using (var wc = new WebClient
+                using var wc = new WebClient
                 {
-                    BaseAddress = "https://api.scryfall.com/"
-                })
-                {
-                    var blob = wc.DownloadString(address);
-                    var json = Newtonsoft.Json.JsonConvert.DeserializeObject(blob) as JObject;
-                    return ParseJson(json);
-                }
+                    BaseAddress = "https://api.scryfall.com/",
+
+                };
+                wc.Headers[HttpRequestHeader.UserAgent] = "PDBot";
+                var blob = wc.DownloadString(address);
+                var json = Newtonsoft.Json.JsonConvert.DeserializeObject(blob) as JObject;
+                return ParseJson(json);
             }
             catch (WebException)
             {
@@ -98,14 +138,13 @@ namespace PDBot.Core.API
             try
             {
 
-                using (var wc = new WebClient
+                using var wc = new WebClient
                 {
                     BaseAddress = "https://api.scryfall.com/"
-                })
-                {
-                    Console.WriteLine(address);
-                    blob = wc.DownloadString(address);
-                }
+                };
+                wc.Headers[HttpRequestHeader.UserAgent] = "PDBot";
+                Console.WriteLine(address);
+                blob = wc.DownloadString(address);
             }
             catch (WebException)
             {
